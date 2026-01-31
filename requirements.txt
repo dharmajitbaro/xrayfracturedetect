@@ -1,11 +1,8 @@
-# 1. Base dependencies
-torch
-torchvision
+torch==2.1.0
+torchvision==0.16.0
 opencv-python-headless
 streamlit
 pillow
-
-# 2. Detectron2 (CPU version for Streamlit Cloud)
-# We use the official pre-built Linux CPU wheel
-https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch2.1/index.html
+# The line below installs the pre-built C++ components for CPU
+-f https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch2.1/index.html
 detectron2
