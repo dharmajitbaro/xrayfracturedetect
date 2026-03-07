@@ -13,3 +13,4 @@ cloudpickle
 pycocotools
 hydra-core
 portalocker
+setuptools
