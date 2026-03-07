@@ -1,3 +1,25 @@
+import subprocess
+import sys
+
+# 1. Force install Detectron2 first
+try:
+    import detectron2
+except ImportError:
+    import os
+    os.system(f"{sys.executable} -m pip install git+https://github.com/facebookresearch/detectron2.git")
+
+# 2. Now proceed with normal imports
+import streamlit as st
+import cv2
+import numpy as np
+from predictor import load_model
+from detectron2.utils.visualizer import Visualizer
+from detectron2.data import MetadataCatalog
+
+
+
+
+
 import streamlit as st
 import os
 import subprocess
