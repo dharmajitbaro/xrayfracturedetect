@@ -4,4 +4,3 @@ torchvision
 opencv-python-headless
 numpy
 matplotlib
-git+https://github.com/facebookresearch/detectron2.git
