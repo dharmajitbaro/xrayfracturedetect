@@ -1,20 +1,37 @@
-import subprocess
-import sys
 import os
+import sys
+import subprocess
+import importlib
 
-# 1. Force install Detectron2 without build isolation
+# 1. Define a local, writable directory for our custom installation
+local_pkg_dir = os.path.join(os.getcwd(), "local_packages")
+if local_pkg_dir not in sys.path:
+    sys.path.insert(0, local_pkg_dir)
+
+# 2. Force install ONLY Detectron2 into the local folder, skipping dependencies
 try:
     import detectron2
 except ImportError:
-    os.system(f"{sys.executable} -m pip install 'git+https://github.com/facebookresearch/detectron2.git' --no-build-isolation")
+    os.makedirs(local_pkg_dir, exist_ok=True)
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", 
+        "git+https://github.com/facebookresearch/detectron2.git", 
+        "--no-deps",               # Skip dependencies (handled in requirements.txt)
+        "--no-build-isolation",    # Use the main environment's PyTorch
+        f"--target={local_pkg_dir}" # Install into our writable folder
+    ])
+    importlib.invalidate_caches() # Refresh so Python sees the new module
 
-# 2. Now proceed with normal imports
+# 3. Now proceed with normal imports
 import streamlit as st
 import cv2
 import numpy as np
 from predictor import load_model
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
+
+
+
 
 
 
