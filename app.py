@@ -102,3 +102,29 @@ if predictor:
             v = Visualizer(image[:, :, ::-1], MetadataCatalog.get("xray"), scale=1.0)
             out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
             st.image(out.get_image()[:, :, ::-1], use_column_width=True)
+
+
+#..............
+    st.write("### Detection Details")
+    st.write(instances)
+
+    # 1. Create the text for the report
+    report_text = f"X-Ray Fracture Detection Report\n"
+    report_text += f"-------------------------------\n"
+    report_text += f"Total Fractures Detected: {num_detections}\n"
+    
+    if num_detections > 0:
+        # Get the confidence scores of the detected fractures
+        scores = instances.scores.tolist()
+        report_text += f"\nConfidence Scores:\n"
+        for i, score in enumerate(scores):
+            # Format the score as a percentage [cite: 1]
+            report_text += f"Fracture {i+1}: {score * 100:.2f}%\n"
+
+    # 2. Add the Streamlit download button
+    st.download_button(
+        label="Download Detection Report",
+        data=report_text,
+        file_name="fracture_report.txt",
+        mime="text/plain"
+    )
