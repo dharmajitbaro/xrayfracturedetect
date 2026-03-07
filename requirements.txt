@@ -9,3 +9,7 @@ iopath
 yacs
 omegaconf
 antlr4-python3-runtime
+cloudpickle
+pycocotools
+hydra-core
+portalocker
