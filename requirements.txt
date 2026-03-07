@@ -4,3 +4,8 @@ torchvision
 opencv-python-headless
 numpy
 matplotlib
+fvcore
+iopath
+yacs
+omegaconf
+antlr4-python3-runtime
