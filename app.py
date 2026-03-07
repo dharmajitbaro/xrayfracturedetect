@@ -2,13 +2,14 @@ import os
 import sys
 import subprocess
 import importlib
+import streamlit as st
 
-# 1. Define a local, writable directory for our custom installation
+# --- 1. DETECTRON2 INSTALLATION HACK ---
+# We keep the one that we know successfully compiled in the logs!
 local_pkg_dir = os.path.join(os.getcwd(), "local_packages")
 if local_pkg_dir not in sys.path:
     sys.path.insert(0, local_pkg_dir)
 
-# 2. Force install ONLY Detectron2 into the local folder, skipping dependencies
 try:
     import detectron2
 except ImportError:
@@ -16,48 +17,13 @@ except ImportError:
     subprocess.check_call([
         sys.executable, "-m", "pip", "install", 
         "git+https://github.com/facebookresearch/detectron2.git", 
-        "--no-deps",               # Skip dependencies (handled in requirements.txt)
-        "--no-build-isolation",    # Use the main environment's PyTorch
-        f"--target={local_pkg_dir}" # Install into our writable folder
+        "--no-deps",               
+        "--no-build-isolation",    
+        f"--target={local_pkg_dir}" 
     ])
-    importlib.invalidate_caches() # Refresh so Python sees the new module
+    importlib.invalidate_caches() 
 
-# 3. Now proceed with normal imports
-import streamlit as st
-import cv2
-import numpy as np
-from predictor import load_model
-from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog
-
-
-
-
-
-
-
-import streamlit as st
-import os
-import subprocess
-import sys
-
-# --- STEP 1: VERIFIED INSTALLATION ---
-@st.cache_resource
-def install_detectron2():
-    try:
-        import detectron2
-    except ImportError:
-        st.info("📦 Finalizing Detectron2 setup for Python 3.10... (Approx 1 min)")
-        # This is a direct link to the pre-compiled Linux wheel for CPU + Python 3.10
-        # This bypasses the need for the server to have a C++ compiler
-        wheel_url = "https://dl.fbaipublicfiles.com/detectron2/wheels/cpu/torch2.1/detectron2-0.6%2Bcpu-cp310-cp310-linux_x86_64.whl"
-        subprocess.check_call([sys.executable, "-m", "pip", "install", wheel_url])
-        st.success("✅ Detectron2 is ready!")
-        st.rerun()
-
-install_detectron2()
-
-# --- STEP 2: IMPORTS ---
+# --- 2. STANDARD IMPORTS ---
 import cv2
 import numpy as np
 from detectron2.engine import DefaultPredictor
@@ -66,19 +32,22 @@ from detectron2 import model_zoo
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
 
-# --- STEP 3: APP LOGIC ---
+# --- 3. APP SETUP & MODEL LOADING ---
+st.set_page_config(page_title="X-ray Fracture Detection", layout="centered")
 st.title("🦴 X-Ray Fracture Detection System")
+st.write("Upload an X-ray image to detect possible fractures.")
+
 MODEL_PATH = "output_xray/model_final.pth"
 
 @st.cache_resource
 def get_predictor():
     if not os.path.exists(MODEL_PATH):
-        st.error(f"❌ Could not find model at {MODEL_PATH}")
+        st.error(f"❌ Could not find model at {MODEL_PATH}. Make sure it uploaded to GitHub!")
         return None
     
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml"))
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 # Update if you have more classes
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 
     cfg.MODEL.WEIGHTS = MODEL_PATH
     cfg.MODEL.DEVICE = "cpu"
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
@@ -86,45 +55,50 @@ def get_predictor():
 
 predictor = get_predictor()
 
+# 🚨 CRUCIAL FIX: Tell the visualizer what class '0' is called!
+metadata = MetadataCatalog.get("xray").set(thing_classes=["Fracture"])
+
+# --- 4. MAIN APP LOGIC ---
 if predictor:
     uploaded_file = st.file_uploader("Upload X-Ray Image", type=["jpg", "png", "jpeg"])
+    
     if uploaded_file:
         file_bytes = np.asarray(bytearray(uploaded_file.read()), dtype=np.uint8)
         image = cv2.imdecode(file_bytes, 1)
         
-        # Resize for stability
+        # Resize for CPU stability and speed
         h, w = image.shape[:2]
         if w > 800:
             image = cv2.resize(image, (800, int(h * 800 / w)))
             
-        with st.spinner("Analyzing..."):
+        with st.spinner("Analyzing X-ray..."):
             outputs = predictor(image)
-            v = Visualizer(image[:, :, ::-1], MetadataCatalog.get("xray"), scale=1.0)
-            out = v.draw_instance_predictions(outputs["instances"].to("cpu"))
-            st.image(out.get_image()[:, :, ::-1], use_column_width=True)
+            
+            # 🚨 CRUCIAL FIX: Define instances so the report can use them
+            instances = outputs["instances"].to("cpu")
+            num_detections = len(instances)
+            
+            v = Visualizer(image[:, :, ::-1], metadata=metadata, scale=1.0)
+            out = v.draw_instance_predictions(instances)
+            
+            st.image(out.get_image()[:, :, ::-1], caption=f"Detected fractures: {num_detections}", use_column_width=True)
 
+        # --- 5. REPORT GENERATION ---
+        st.write("### Detection Details")
 
-#..............
-    st.write("### Detection Details")
-    st.write(instances)
+        report_text = f"X-Ray Fracture Detection Report\n"
+        report_text += f"-------------------------------\n"
+        report_text += f"Total Fractures Detected: {num_detections}\n"
+        
+        if num_detections > 0:
+            scores = instances.scores.tolist()
+            report_text += f"\nConfidence Scores:\n"
+            for i, score in enumerate(scores):
+                report_text += f"Fracture {i+1}: {score * 100:.2f}%\n"
 
-    # 1. Create the text for the report
-    report_text = f"X-Ray Fracture Detection Report\n"
-    report_text += f"-------------------------------\n"
-    report_text += f"Total Fractures Detected: {num_detections}\n"
-    
-    if num_detections > 0:
-        # Get the confidence scores of the detected fractures
-        scores = instances.scores.tolist()
-        report_text += f"\nConfidence Scores:\n"
-        for i, score in enumerate(scores):
-            # Format the score as a percentage [cite: 1]
-            report_text += f"Fracture {i+1}: {score * 100:.2f}%\n"
-
-    # 2. Add the Streamlit download button
-    st.download_button(
-        label="Download Detection Report",
-        data=report_text,
-        file_name="fracture_report.txt",
-        mime="text/plain"
-    )
+        st.download_button(
+            label="Download Detection Report",
+            data=report_text,
+            file_name="fracture_report.txt",
+            mime="text/plain"
+        )
