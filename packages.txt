@@ -1,4 +1,6 @@
-libgl1
-libglib2.0-0
-build-essential
-python3-dev
+streamlit
+torch
+opencv-python
+numpy
+matplotlib
+detectron2
