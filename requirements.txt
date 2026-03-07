@@ -14,3 +14,5 @@ pycocotools
 hydra-core
 portalocker
 setuptools<70.0.0
+wheel
+ninja
