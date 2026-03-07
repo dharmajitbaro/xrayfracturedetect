@@ -1,12 +1,12 @@
 import subprocess
 import sys
+import os
 
-# 1. Force install Detectron2 first
+# 1. Force install Detectron2 without build isolation
 try:
     import detectron2
 except ImportError:
-    import os
-    os.system(f"{sys.executable} -m pip install git+https://github.com/facebookresearch/detectron2.git")
+    os.system(f"{sys.executable} -m pip install 'git+https://github.com/facebookresearch/detectron2.git' --no-build-isolation")
 
 # 2. Now proceed with normal imports
 import streamlit as st
@@ -15,7 +15,6 @@ import numpy as np
 from predictor import load_model
 from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
-
 
 
 
